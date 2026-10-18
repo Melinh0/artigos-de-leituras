@@ -1,0 +1,10 @@
+services:
+  editor:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./artigos:/app/artigos
+      - ./template:/app/template
+      - ./build:/app/build
+    restart: unless-stopped

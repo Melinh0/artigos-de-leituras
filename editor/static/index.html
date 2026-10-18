@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Editor de Artigos de Leitura</title>
+  <link rel="stylesheet" href="/static/vendor/codemirror.min.css">
+  <link rel="stylesheet" href="/static/vendor/material-darker.min.css">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <aside id="lateral">
+    <header>
+      <h1>Artigos de Leitura</h1>
+      <p id="resumo-status">carregando…</p>
+    </header>
+    <button id="btn-novo" class="botao primario" type="button">+ Novo artigo</button>
+    <ul id="lista-artigos"></ul>
+  </aside>
+
+  <main>
+    <header id="barra">
+      <span id="artigo-atual">Nenhum artigo aberto</span>
+      <div class="acoes">
+        <span id="indicador" class="oculto"></span>
+        <button id="btn-salvar" class="botao" type="button" disabled>Salvar</button>
+        <button id="btn-compilar" class="botao primario" type="button" disabled>Compilar</button>
+        <a id="btn-pdf" class="botao oculto" href="#" target="_blank" rel="noopener">Ver PDF</a>
+      </div>
+    </header>
+
+    <section id="editor"></section>
+
+    <section id="painel-log" class="oculto" aria-live="polite">
+      <div class="cabecalho-log">
+        <strong>Saída da compilação</strong>
+        <button id="btn-fechar-log" class="botao" type="button">Fechar</button>
+      </div>
+      <pre id="log"></pre>
+    </section>
+  </main>
+
+  <div id="modal-novo" class="oculto">
+    <div class="caixa-modal">
+      <h2>Novo artigo</h2>
+      <label for="novo-slug">Slug (letras minúsculas e hífens)</label>
+      <input id="novo-slug" type="text" placeholder="06-nome-da-obra" autocomplete="off">
+      <label for="novo-titulo">Título</label>
+      <input id="novo-titulo" type="text" placeholder="Título do artigo" autocomplete="off">
+      <p id="erro-novo" class="erro oculto"></p>
+      <div class="acoes-modal">
+        <button id="btn-cancelar-novo" class="botao" type="button">Cancelar</button>
+        <button id="btn-criar-novo" class="botao primario" type="button">Criar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/vendor/codemirror.min.js"></script>
+  <script src="/static/vendor/stex.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

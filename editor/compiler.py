@@ -19,6 +19,48 @@ TIMEOUT_SEGUNDOS = 90
 LIMITE_LOG = 12000
 
 
+def _atualizar_path_do_registro() -> None:
+    """No Windows, absorve o PATH do registro (ex.: apos instalar o MiKTeX).
+
+    Terminais abertos antes da instalacao ficam com o PATH antigo; ler o
+    registro na inicializacao faz o servidor achar o pdflatex sem exigir
+    um terminal novo.
+    """
+    if os.name != "nt":
+        return
+    try:
+        import winreg
+    except ImportError:
+        return
+    chaves = (
+        (
+            winreg.HKEY_LOCAL_MACHINE,
+            r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
+        ),
+        (winreg.HKEY_CURRENT_USER, "Environment"),
+    )
+    novas: list[str] = []
+    for raiz, subchave in chaves:
+        try:
+            with winreg.OpenKey(raiz, subchave) as chave:
+                valor, tipo = winreg.QueryValueEx(chave, "Path")
+        except OSError:
+            continue
+        if not valor:
+            continue
+        if tipo == winreg.REG_EXPAND_SZ:
+            valor = os.path.expandvars(valor)
+        novas.extend(p for p in valor.split(os.pathsep) if p)
+    atual = os.environ.get("PATH", "")
+    atuais = set(atual.split(os.pathsep))
+    extras = [p for p in novas if p not in atuais]
+    if extras:
+        os.environ["PATH"] = os.pathsep.join([*extras, atual])
+
+
+_atualizar_path_do_registro()
+
+
 @dataclass
 class ResultadoCompilacao:
     ok: bool

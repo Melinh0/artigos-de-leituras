@@ -1,6 +1,7 @@
 .git
 .venv
 build
+livros
 __pycache__
 *.pyc
 .opencode

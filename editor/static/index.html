@@ -1,9 +1,18 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-tema="escuro">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Editor de Artigos de Leitura</title>
+  <script>
+    try {
+      var t = localStorage.getItem("tema");
+      if (!t) {
+        t = window.matchMedia("(prefers-color-scheme: light)").matches ? "claro" : "escuro";
+      }
+      document.documentElement.dataset.tema = t;
+    } catch (e) {}
+  </script>
   <link rel="stylesheet" href="/static/vendor/codemirror.min.css">
   <link rel="stylesheet" href="/static/vendor/material-darker.min.css">
   <link rel="stylesheet" href="/static/style.css">
@@ -13,6 +22,7 @@
     <header>
       <h1>Artigos de Leitura</h1>
       <p id="resumo-status">carregando…</p>
+      <button id="btn-tema" class="botao" type="button">Tema: escuro</button>
     </header>
     <button id="btn-novo" class="botao primario" type="button">+ Novo artigo</button>
     <ul id="lista-artigos"></ul>
@@ -25,11 +35,29 @@
         <span id="indicador" class="oculto"></span>
         <button id="btn-salvar" class="botao" type="button" disabled>Salvar</button>
         <button id="btn-compilar" class="botao primario" type="button" disabled>Compilar</button>
-        <a id="btn-pdf" class="botao oculto" href="#" target="_blank" rel="noopener">Ver PDF</a>
+        <button id="btn-previa" class="botao oculto" type="button">Prévia</button>
       </div>
     </header>
 
-    <section id="editor"></section>
+    <div id="area-principal">
+      <section id="editor"></section>
+
+      <aside id="painel-previa" class="oculto">
+        <div class="cabecalho-previa">
+          <strong>PDF compilado</strong>
+          <div class="tema-pdf" role="group" aria-label="Tema da prévia do PDF">
+            <span class="rotulo-tema-pdf">PDF:</span>
+            <button id="btn-pdf-claro" class="botao segmentado" type="button">Claro</button>
+            <button id="btn-pdf-escuro" class="botao segmentado" type="button">Escuro</button>
+          </div>
+          <div class="acoes">
+            <a id="btn-baixar" class="botao" href="#">Baixar PDF</a>
+            <button id="btn-fechar-previa" class="botao" type="button">Fechar</button>
+          </div>
+        </div>
+        <iframe id="iframe-previa" title="Pré-visualização do PDF compilado"></iframe>
+      </aside>
+    </div>
 
     <section id="painel-log" class="oculto" aria-live="polite">
       <div class="cabecalho-log">

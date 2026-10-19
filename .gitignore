@@ -16,6 +16,9 @@ build/
 *.bbl
 *.blg
 
+# Livros (cópias locais dos PDFs analisados; nunca versionar)
+livros/
+
 # Sistema
 .DS_Store
 Thumbs.db

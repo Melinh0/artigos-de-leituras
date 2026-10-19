@@ -11,10 +11,14 @@ Os textos estão em sequência lógica de leitura (cada diálogo interno referen
 | 1 | `artigos/01-a-metamorfose` | A Metamorfose | Franz Kafka |
 | 2 | `artigos/02-o-conto-da-ilha-desconhecida` | O Conto da Ilha Desconhecida | José Saramago |
 | 3 | `artigos/03-ideias-para-adiar-o-fim-do-mundo` | Ideias para adiar o fim do mundo | Ailton Krenak |
-| 4 | `artigos/04-procognitiva-ciclo-1-volume-1` | Procognitiva — Ciclo 1, Volume 1 | Neufeld, Falcone e Rango (org.) |
+| 4 | `artigos/04-procognitiva-ciclo-1-volume-1` | Procognitiva — Ciclo 1, Volume 1 | Neufeld, Falcone e Rangé (org.) |
 | 5 | `artigos/05-breve-historia-da-psicologia-moderna-ocidental` | Breve História da Psicologia Moderna Ocidental | Teresa Sousa Machado |
 
 Cada pasta contém um único `artigo.tex` autocontido (bibliografia inline, sem imagens externas), compilado com o estilo SBC (`template/sbc-template.sty`).
+
+## Livros locais
+
+A pasta `livros/` guarda cópias em PDF das obras analisadas (edições usadas nas citações e páginas). Ela é **local e ignorada pelo git e pelo Docker** — não versione esses arquivos. A amostra oficial do *Procognitiva* (capítulo de pp. 77–102) fica junto, com o restante do volume disponível para assinantes no portal SECAD.
 
 ## Estrutura
 
@@ -63,7 +67,9 @@ Acesse <http://localhost:8000>. Sem `pdflatex` no PATH a interface funciona norm
 
 - **Editar**: clique num artigo na lateral e edite o código LaTeX (destaque de sintaxe via CodeMirror).
 - **Salvar**: botão *Salvar* ou `Ctrl+S`.
-- **Compilar**: botão *Compilar* ou `Ctrl+Enter` — a saída do `pdflatex` aparece no painel inferior e o PDF abre com *Ver PDF*.
+- **Compilar**: botão *Compilar* ou `Ctrl+Enter` — a saída do `pdflatex` aparece no painel inferior e o **PDF compilado abre em prévia ao lado do editor**. O botão *Baixar PDF* (dentro da prévia) baixa o arquivo quando quiser; *Prévia* na barra superior reabre a visualização.
+- **Tema**: botão *Tema* na lateral alterna entre modo claro e escuro (a preferência fica salva no navegador).
+- **Prévia do PDF em claro/escuro**: no cabeçalho da prévia, os botões *PDF: Claro | Escuro* alternam a exibição do PDF (inversão de cores aplicada via CSS no iframe, sem recarregar). A preferência fica salva no navegador (`tema-pdf`); por padrão segue o tema do editor.
 - **Novo artigo**: botão *+ Novo artigo* cria uma pasta em `artigos/` a partir de `template/novo-artigo.tex`.
 
 Também é possível editar os `.tex` diretamente (inclusive com o opencode) — o editor web só lê e grava os mesmos arquivos.
@@ -85,4 +91,4 @@ O `template/` precisa estar no `TEXINPUTS` (o `editor/compiler.py` cuida disso a
 | GET/PUT | `/api/artigos/{slug}` | ler/salvar o `.tex` |
 | POST | `/api/artigos` | criar artigo a partir do modelo |
 | POST | `/api/artigos/{slug}/compilar` | compilar e retornar log/erros |
-| GET | `/api/artigos/{slug}/pdf` | servir o PDF gerado |
+| GET | `/api/artigos/{slug}/pdf` | servir o PDF gerado (inline; `?download=1` para baixar) |

@@ -148,12 +148,17 @@ def compilar_artigo(slug: str) -> dict:
 
 
 @app.get("/api/artigos/{slug}/pdf")
-def baixar_pdf(slug: str) -> FileResponse:
+def servir_pdf(slug: str, download: bool = False) -> FileResponse:
     _validar_slug(slug)
     pdf = BUILD_DIR / slug / "artigo.pdf"
     if not pdf.is_file():
         raise HTTPException(status_code=404, detail="PDF ainda não foi compilado.")
-    return FileResponse(pdf, media_type="application/pdf", filename=f"{slug}.pdf")
+    return FileResponse(
+        pdf,
+        media_type="application/pdf",
+        filename=f"{slug}.pdf",
+        content_disposition_type="attachment" if download else "inline",
+    )
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

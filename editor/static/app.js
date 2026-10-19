@@ -1,8 +1,10 @@
 /* Editor de Artigos de Leitura - lógica da interface */
 
+const temaAtual = () => document.documentElement.dataset.tema || "escuro";
+
 const editor = CodeMirror(document.getElementById("editor"), {
   mode: "stex",
-  theme: "material-darker",
+  theme: temaAtual() === "claro" ? "default" : "material-darker",
   lineNumbers: true,
   lineWrapping: true,
   indentUnit: 2,
@@ -15,13 +17,20 @@ const statusEl = document.getElementById("resumo-status");
 const indicadorEl = document.getElementById("indicador");
 const btnSalvar = document.getElementById("btn-salvar");
 const btnCompilar = document.getElementById("btn-compilar");
-const btnPdf = document.getElementById("btn-pdf");
+const btnPrevia = document.getElementById("btn-previa");
+const btnTema = document.getElementById("btn-tema");
+const painelPrevia = document.getElementById("painel-previa");
+const iframePrevia = document.getElementById("iframe-previa");
+const btnBaixar = document.getElementById("btn-baixar");
+const btnPdfClaro = document.getElementById("btn-pdf-claro");
+const btnPdfEscuro = document.getElementById("btn-pdf-escuro");
 const painelLog = document.getElementById("painel-log");
 const logEl = document.getElementById("log");
 const modalNovo = document.getElementById("modal-novo");
 
 let slugAtual = null;
 let sujo = false;
+let urlPrevia = null;
 
 async function api(caminho, opcoes = {}) {
   const resposta = await fetch(caminho, {
@@ -43,6 +52,58 @@ function indicador(texto, ocupado = false) {
   indicadorEl.textContent = texto;
   indicadorEl.classList.toggle("ocupado", ocupado);
   indicadorEl.classList.toggle("oculto", !texto);
+}
+
+function aplicarTema(tema) {
+  document.documentElement.dataset.tema = tema;
+  editor.setOption("theme", tema === "claro" ? "default" : "material-darker");
+  btnTema.textContent = tema === "claro" ? "Tema: claro" : "Tema: escuro";
+  try {
+    localStorage.setItem("tema", tema);
+  } catch (e) {}
+  aplicarTemaPdf(temaPdfAtual());
+}
+
+function alternarTema() {
+  aplicarTema(temaAtual() === "claro" ? "escuro" : "claro");
+}
+
+function temaPdfAtual() {
+  try {
+    return localStorage.getItem("tema-pdf") || temaAtual();
+  } catch (e) {
+    return temaAtual();
+  }
+}
+
+function aplicarTemaPdf(tema, persistir = false) {
+  iframePrevia.classList.toggle("invertido", tema === "escuro");
+  btnPdfClaro.classList.toggle("ativo", tema === "claro");
+  btnPdfEscuro.classList.toggle("ativo", tema === "escuro");
+  if (persistir) {
+    try {
+      localStorage.setItem("tema-pdf", tema);
+    } catch (e) {}
+  }
+}
+
+function mostrarPrevia(url) {
+  urlPrevia = url;
+  iframePrevia.src = url;
+  btnBaixar.href = url + (url.includes("?") ? "&" : "?") + "download=1";
+  painelPrevia.classList.remove("oculto");
+  btnPrevia.classList.remove("oculto");
+}
+
+function fecharPrevia() {
+  painelPrevia.classList.add("oculto");
+}
+
+function limparPrevia() {
+  urlPrevia = null;
+  fecharPrevia();
+  btnPrevia.classList.add("oculto");
+  iframePrevia.src = "about:blank";
 }
 
 async function carregarStatus() {
@@ -96,7 +157,7 @@ async function abrirArtigo(slug) {
     atualEl.textContent = dados.titulo || dados.slug;
     btnSalvar.disabled = true;
     btnCompilar.disabled = false;
-    btnPdf.classList.add("oculto");
+    limparPrevia();
     fecharLog();
     marcarAtivo();
     indicador("");
@@ -149,11 +210,10 @@ async function compilar() {
     const dados = await api(`/api/artigos/${slugAtual}/compilar`, { method: "POST" });
     mostrarLog(dados);
     if (dados.ok && dados.pdf) {
-      btnPdf.href = dados.pdf;
-      btnPdf.classList.remove("oculto");
+      mostrarPrevia(dados.pdf);
       indicador("PDF pronto");
     } else {
-      btnPdf.classList.add("oculto");
+      limparPrevia();
       indicador("falhou");
     }
   } catch (e) {
@@ -199,9 +259,16 @@ editor.on("change", () => {
   btnSalvar.disabled = false;
 });
 
+btnTema.addEventListener("click", alternarTema);
+btnPdfClaro.addEventListener("click", () => aplicarTemaPdf("claro", true));
+btnPdfEscuro.addEventListener("click", () => aplicarTemaPdf("escuro", true));
 document.getElementById("btn-salvar").addEventListener("click", salvar);
 document.getElementById("btn-compilar").addEventListener("click", compilar);
 document.getElementById("btn-fechar-log").addEventListener("click", fecharLog);
+document.getElementById("btn-fechar-previa").addEventListener("click", fecharPrevia);
+btnPrevia.addEventListener("click", () => {
+  if (urlPrevia) mostrarPrevia(urlPrevia);
+});
 document.getElementById("btn-novo").addEventListener("click", abrirModal);
 document.getElementById("btn-cancelar-novo").addEventListener("click", fecharModal);
 document.getElementById("btn-criar-novo").addEventListener("click", criarArtigo);
@@ -228,6 +295,8 @@ window.addEventListener("beforeunload", (e) => {
 });
 
 (async function iniciar() {
+  aplicarTema(temaAtual());
+  aplicarTemaPdf(temaPdfAtual());
   await carregarStatus();
   await carregarLista();
   const artigos = await api("/api/artigos");

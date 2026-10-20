@@ -1,5 +1,3 @@
-"""API e servidor do editor web de artigos LaTeX."""
-
 from __future__ import annotations
 
 import re
@@ -19,6 +17,9 @@ from .compiler import (
     compilar,
     extrair_titulo,
     pdflatex_disponivel,
+    sincronizar_fonte,
+    sincronizar_pdf,
+    synctex_disponivel,
 )
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -68,6 +69,11 @@ def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
+@app.get("/health")
+def health() -> dict:
+    return {"ok": True}
+
+
 @app.get("/api/status")
 def status() -> dict:
     quantidade = (
@@ -75,7 +81,11 @@ def status() -> dict:
         if ARTIGOS_DIR.is_dir()
         else 0
     )
-    return {"pdflatex": pdflatex_disponivel(), "artigos": quantidade}
+    return {
+        "pdflatex": pdflatex_disponivel(),
+        "synctex": synctex_disponivel(),
+        "artigos": quantidade,
+    }
 
 
 @app.get("/api/artigos")
@@ -145,6 +155,18 @@ def compilar_artigo(slug: str) -> dict:
         versao = int(resultado.pdf.stat().st_mtime)
         resposta["pdf"] = f"/api/artigos/{slug}/pdf?v={versao}"
     return resposta
+
+
+@app.get("/api/artigos/{slug}/synctex/ida")
+def synctex_ida(slug: str, linha: int, coluna: int = 1) -> dict:
+    _validar_slug(slug)
+    return sincronizar_fonte(slug, linha, coluna)
+
+
+@app.get("/api/artigos/{slug}/synctex/volta")
+def synctex_volta(slug: str, pagina: int, x: float, y: float) -> dict:
+    _validar_slug(slug)
+    return sincronizar_pdf(slug, pagina, x, y)
 
 
 @app.get("/api/artigos/{slug}/pdf")

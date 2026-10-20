@@ -13,6 +13,8 @@
   --ok: #2e7d32;
   --texto-log: #20242a;
   --fundo-log: #f0f2f5;
+  --largura-lateral: 280px;
+  --largura-previa: 50%;
 }
 
 html[data-tema="escuro"] {
@@ -54,18 +56,50 @@ body {
   display: none !important;
 }
 
-/* ---------- lateral ---------- */
 
 #lateral {
-  width: 280px;
-  min-width: 280px;
+  width: var(--largura-lateral);
+  min-width: var(--largura-lateral);
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: 16px;
   background: var(--fundo-2);
-  border-right: 1px solid var(--borda);
   overflow-y: auto;
+}
+
+
+.divisor {
+  flex: 0 0 7px;
+  position: relative;
+  z-index: 5;
+  cursor: col-resize;
+  touch-action: none;
+  background: var(--fundo);
+}
+
+.divisor::before {
+  content: "";
+  position: absolute;
+  inset: 0 3px;
+  background: var(--borda);
+  transition: background 0.15s;
+}
+
+.divisor:hover::before,
+.divisor.arrastando::before,
+.divisor:focus-visible::before {
+  background: var(--acento);
+}
+
+.divisor:focus-visible {
+  outline: none;
+}
+
+body.redimensionando {
+  cursor: col-resize;
+  user-select: none;
 }
 
 #lateral h1 {
@@ -135,13 +169,13 @@ html[data-tema="escuro"] .item-lista.ativo {
   font-size: 11px;
 }
 
-/* ---------- principal ---------- */
 
 main {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
 }
 
 #barra {
@@ -226,7 +260,6 @@ main {
   border-color: var(--acento-hover);
 }
 
-/* ---------- área principal (editor + prévia) ---------- */
 
 #area-principal {
   flex: 1;
@@ -247,12 +280,13 @@ main {
 }
 
 #painel-previa {
-  width: 50%;
-  min-width: 320px;
+  width: var(--largura-previa);
+  min-width: 300px;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   background: var(--fundo-2);
-  border-left: 1px solid var(--borda);
+  min-height: 0;
 }
 
 .cabecalho-previa,
@@ -265,6 +299,30 @@ main {
   border-bottom: 1px solid var(--borda);
 }
 
+.cabecalho-previa {
+  flex-wrap: wrap;
+}
+
+.titulo-previa {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.info-pdf {
+  font-size: 12px;
+  color: var(--texto-fraco);
+  white-space: nowrap;
+}
+
+.controles-previa {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.zoom-pdf,
 .tema-pdf {
   display: flex;
   align-items: center;
@@ -285,18 +343,81 @@ main {
   font-weight: 600;
 }
 
-#iframe-previa {
+#visualizador-pdf {
   flex: 1;
-  width: 100%;
-  border: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px;
   background: #525659;
+  outline: none;
 }
 
-#iframe-previa.invertido {
+.paginas-pdf {
+  width: 100%;
+}
+
+.paginas-pdf.invertido {
   filter: invert(1) hue-rotate(180deg);
 }
 
-/* ---------- log ---------- */
+.pagina-pdf {
+  position: relative;
+  margin: 0 auto 16px;
+  background: #ffffff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  line-height: 0;
+  cursor: crosshair;
+}
+
+.destaque-synctex {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: 2px;
+  background: rgba(255, 214, 0, 0.38);
+  border: 1px solid rgba(255, 166, 0, 0.9);
+  box-shadow: 0 0 0 2px rgba(255, 214, 0, 0.22);
+  animation: pulsar-synctex 0.8s ease-out 2;
+}
+
+@keyframes pulsar-synctex {
+  from {
+    background: rgba(255, 214, 0, 0.72);
+  }
+  to {
+    background: rgba(255, 214, 0, 0.38);
+  }
+}
+
+.CodeMirror .linha-synctex {
+  background: rgba(255, 214, 0, 0.26) !important;
+}
+
+.dica-sync {
+  font-size: 11px;
+  color: var(--texto-fraco);
+  cursor: help;
+}
+
+.pagina-pdf:last-child {
+  margin-bottom: 0;
+}
+
+.pagina-pdf canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.estado-pdf {
+  margin: 24px auto;
+  max-width: 34ch;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #eceff3;
+}
+
 
 #painel-log {
   max-height: 40%;
@@ -318,7 +439,6 @@ main {
   background: var(--fundo-log);
 }
 
-/* ---------- modal ---------- */
 
 #modal-novo {
   position: fixed;
@@ -379,7 +499,6 @@ main {
   margin-top: 8px;
 }
 
-/* ---------- responsivo ---------- */
 
 @media (max-width: 760px) {
   body {
@@ -390,8 +509,11 @@ main {
     width: 100%;
     min-width: 0;
     max-height: 35vh;
-    border-right: none;
     border-bottom: 1px solid var(--borda);
+  }
+
+  .divisor {
+    display: none;
   }
 
   #area-principal {
@@ -402,7 +524,10 @@ main {
     width: 100%;
     min-width: 0;
     height: 55%;
-    border-left: none;
     border-top: 1px solid var(--borda);
+  }
+
+  #visualizador-pdf {
+    padding: 10px;
   }
 }

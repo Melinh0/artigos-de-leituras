@@ -28,6 +28,10 @@
     <ul id="lista-artigos"></ul>
   </aside>
 
+  <div id="divisor-lateral" class="divisor" role="separator" aria-orientation="vertical"
+       aria-label="Redimensionar a lista de artigos" tabindex="0"
+       title="Arraste para redimensionar · duplo clique restaura"></div>
+
   <main>
     <header id="barra">
       <span id="artigo-atual">Nenhum artigo aberto</span>
@@ -42,20 +46,40 @@
     <div id="area-principal">
       <section id="editor"></section>
 
+      <div id="divisor-previa" class="divisor oculto" role="separator" aria-orientation="vertical"
+           aria-label="Redimensionar a prévia do PDF" tabindex="0"
+           title="Arraste para redimensionar · duplo clique restaura"></div>
+
       <aside id="painel-previa" class="oculto">
         <div class="cabecalho-previa">
-          <strong>PDF compilado</strong>
-          <div class="tema-pdf" role="group" aria-label="Tema da prévia do PDF">
-            <span class="rotulo-tema-pdf">PDF:</span>
-            <button id="btn-pdf-claro" class="botao segmentado" type="button">Claro</button>
-            <button id="btn-pdf-escuro" class="botao segmentado" type="button">Escuro</button>
+          <div class="titulo-previa">
+            <strong>PDF compilado</strong>
+            <span id="info-pdf" class="info-pdf"></span>
+            <span class="dica-sync" title="Clique no PDF para ir ao texto; clique no texto para ir ao PDF">PDF ↔ texto</span>
+          </div>
+          <div class="controles-previa">
+            <div class="zoom-pdf" role="group" aria-label="Zoom da prévia do PDF">
+              <button id="btn-zoom-menos" class="botao segmentado" type="button" aria-label="Diminuir zoom">−</button>
+              <button id="btn-zoom-ajustar" class="botao segmentado ativo" type="button"
+                      title="Ajustar as páginas à largura do painel">Ajustar</button>
+              <button id="btn-zoom-mais" class="botao segmentado" type="button" aria-label="Aumentar zoom">+</button>
+            </div>
+            <div class="tema-pdf" role="group" aria-label="Tema da prévia do PDF">
+              <span class="rotulo-tema-pdf">PDF:</span>
+              <button id="btn-pdf-claro" class="botao segmentado" type="button">Claro</button>
+              <button id="btn-pdf-escuro" class="botao segmentado" type="button">Escuro</button>
+            </div>
           </div>
           <div class="acoes">
             <a id="btn-baixar" class="botao" href="#">Baixar PDF</a>
             <button id="btn-fechar-previa" class="botao" type="button">Fechar</button>
           </div>
         </div>
-        <iframe id="iframe-previa" title="Pré-visualização do PDF compilado"></iframe>
+        <div id="visualizador-pdf" tabindex="0"
+             aria-label="Pré-visualização do PDF compilado; clique para ir ao texto correspondente">
+          <p id="estado-pdf" class="estado-pdf">Compile o artigo para ver o PDF aqui.</p>
+          <div id="paginas-pdf" class="paginas-pdf"></div>
+        </div>
       </aside>
     </div>
 
@@ -85,6 +109,7 @@
 
   <script src="/static/vendor/codemirror.min.js"></script>
   <script src="/static/vendor/stex.min.js"></script>
+  <script src="/static/vendor/pdf.min.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

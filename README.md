@@ -31,7 +31,7 @@ artigos-de-leituras/
 ├── editor/
 │   ├── main.py            # API FastAPI (listar, editar, compilar)
 │   ├── compiler.py        # execução do pdflatex + extração de erros
-│   └── static/            # interface (CodeMirror offline + CSS/JS)
+│   └── static/            # interface (CodeMirror e PDF.js offline + CSS/JS)
 ├── build/                 # PDFs e logs gerados (não versionados)
 ├── Dockerfile             # imagem com Python + TeX Live completo
 ├── docker-compose.yml     # sobe o editor na porta 8000
@@ -67,9 +67,12 @@ Acesse <http://localhost:8000>. Sem `pdflatex` no PATH a interface funciona norm
 
 - **Editar**: clique num artigo na lateral e edite o código LaTeX (destaque de sintaxe via CodeMirror).
 - **Salvar**: botão *Salvar* ou `Ctrl+S`.
-- **Compilar**: botão *Compilar* ou `Ctrl+Enter` — a saída do `pdflatex` aparece no painel inferior e o **PDF compilado abre em prévia ao lado do editor**. O botão *Baixar PDF* (dentro da prévia) baixa o arquivo quando quiser; *Prévia* na barra superior reabre a visualização.
+- **Compilar**: botão *Compilar* ou `Ctrl+Enter` — a saída do `pdflatex` aparece no painel inferior e o **PDF compilado abre em prévia ao lado do editor**, renderizado em páginas contínuas sem a barra do visualizador do navegador. O botão *Baixar PDF* baixa o arquivo quando quiser; *Prévia* na barra superior reabre a visualização.
+- **Painéis redimensionáveis**: arraste as divisórias entre a lista, o editor e a prévia (duplo clique restaura a largura padrão; setas do teclado ajustam quando a divisória está em foco). As larguras ficam salvas no navegador, e as páginas do PDF se ajustam à largura da prévia.
+- **Zoom da prévia**: os botões *−*, *Ajustar* e *+* no cabeçalho da prévia controlam o tamanho das páginas; *Ajustar* volta a encaixar o PDF na largura do painel.
 - **Tema**: botão *Tema* na lateral alterna entre modo claro e escuro (a preferência fica salva no navegador).
-- **Prévia do PDF em claro/escuro**: no cabeçalho da prévia, os botões *PDF: Claro | Escuro* alternam a exibição do PDF (inversão de cores aplicada via CSS no iframe, sem recarregar). A preferência fica salva no navegador (`tema-pdf`); por padrão segue o tema do editor.
+- **Prévia do PDF em claro/escuro**: no cabeçalho da prévia, os botões *PDF: Claro | Escuro* alternam a exibição do PDF (inversão de cores aplicada via CSS às páginas em canvas, sem recarregar). A preferência fica salva no navegador (`tema-pdf`); por padrão segue o tema do editor.
+- **Sincronia PDF ↔ texto (SyncTeX)**: clique numa página do PDF para levar o cursor à linha correspondente do `.tex`; clique numa linha do editor para rolar a prévia até o ponto correspondente e destacá-lo. A sincronia exige `pdflatex -synctex=1` (o compilador do editor já usa essa opção) e o comando `synctex` no PATH. Depois de mudar o texto, compile novamente para atualizar os dados de sincronização.
 - **Novo artigo**: botão *+ Novo artigo* cria uma pasta em `artigos/` a partir de `template/novo-artigo.tex`.
 
 Também é possível editar os `.tex` diretamente (inclusive com o opencode) — o editor web só lê e grava os mesmos arquivos.
@@ -77,7 +80,7 @@ Também é possível editar os `.tex` diretamente (inclusive com o opencode) —
 ## Compilação manual (sem a interface)
 
 ```bash
-pdflatex -interaction=nonstopmode -output-directory=build/<slug> artigos/<slug>/artigo.tex
+pdflatex -interaction=nonstopmode -synctex=1 -output-directory=build/<slug> artigos/<slug>/artigo.tex
 ```
 
 O `template/` precisa estar no `TEXINPUTS` (o `editor/compiler.py` cuida disso automaticamente; cada compilação roda duas passagens para resolver `\cite`).
@@ -86,9 +89,12 @@ O `template/` precisa estar no `TEXINPUTS` (o `editor/compiler.py` cuida disso a
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| GET | `/api/status` | disponibilidade do `pdflatex` e nº de artigos |
+| GET | `/health` | verificação simples de disponibilidade (`{"ok": true}`) |
+| GET | `/api/status` | disponibilidade do `pdflatex` e do `synctex`, nº de artigos |
 | GET | `/api/artigos` | lista de artigos com títulos |
 | GET/PUT | `/api/artigos/{slug}` | ler/salvar o `.tex` |
 | POST | `/api/artigos` | criar artigo a partir do modelo |
 | POST | `/api/artigos/{slug}/compilar` | compilar e retornar log/erros |
+| GET | `/api/artigos/{slug}/synctex/ida` | linha do `.tex` → página e caixas no PDF (`linha`, `coluna`) |
+| GET | `/api/artigos/{slug}/synctex/volta` | ponto do PDF → linha do `.tex` (`pagina`, `x`, `y`) |
 | GET | `/api/artigos/{slug}/pdf` | servir o PDF gerado (inline; `?download=1` para baixar) |

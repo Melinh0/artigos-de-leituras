@@ -1,5 +1,3 @@
-"""Compilação dos artigos LaTeX com pdflatex."""
-
 from __future__ import annotations
 
 import os
@@ -20,12 +18,6 @@ LIMITE_LOG = 12000
 
 
 def _atualizar_path_do_registro() -> None:
-    """No Windows, absorve o PATH do registro (ex.: apos instalar o MiKTeX).
-
-    Terminais abertos antes da instalacao ficam com o PATH antigo; ler o
-    registro na inicializacao faz o servidor achar o pdflatex sem exigir
-    um terminal novo.
-    """
     if os.name != "nt":
         return
     try:
@@ -104,6 +96,7 @@ def _executar_passe(slug: str, artigo: Path, saida: Path) -> tuple[int, str]:
     cmd = [
         "pdflatex",
         "-interaction=nonstopmode",
+        "-synctex=1",
         f"-output-directory={saida}",
         artigo.name,
     ]
@@ -199,3 +192,194 @@ def extrair_titulo(conteudo: str) -> str:
     titulo = re.sub(r"\\[a-zA-Z]+\s*", "", titulo)
     titulo = titulo.replace("{", "").replace("}", "")
     return re.sub(r"\s+", " ", titulo).strip()
+
+
+TIMEOUT_SYNCTEX = 15
+
+
+def synctex_disponivel() -> bool:
+    return shutil.which("synctex") is not None
+
+
+def caminho_pdf(slug: str) -> Path:
+    return BUILD_DIR / slug / "artigo.pdf"
+
+
+def _synctex_existe(slug: str) -> bool:
+    pasta = BUILD_DIR / slug
+    return (pasta / "artigo.synctex.gz").is_file() or (
+        pasta / "artigo.synctex"
+    ).is_file()
+
+
+def _executar_synctex(argumentos: list[str]) -> tuple[int, str]:
+    env = os.environ.copy()
+    env["LC_ALL"] = "C"
+    env["LANG"] = "C"
+    proc = subprocess.run(
+        ["synctex", *argumentos],
+        cwd=RAIZ,
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=TIMEOUT_SYNCTEX,
+    )
+    return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
+
+
+def _analisar_caixas_view(saida: str) -> list[dict]:
+    caixas: list[dict] = []
+    atual: dict = {}
+    for linha in saida.splitlines():
+        if linha.startswith("Page:"):
+            if atual:
+                caixas.append(atual)
+            try:
+                atual = {"pagina": int(linha.split(":", 1)[1].strip())}
+            except ValueError:
+                atual = {}
+        elif atual and ":" in linha:
+            chave, valor = linha.split(":", 1)
+            if chave in {"h", "v", "W", "H"}:
+                try:
+                    atual[chave] = float(valor)
+                except ValueError:
+                    pass
+    if atual:
+        caixas.append(atual)
+
+    validas: list[dict] = []
+    vistas: set[tuple] = set()
+    for caixa in caixas:
+        if not all(k in caixa for k in ("pagina", "h", "v", "W", "H")):
+            continue
+        if caixa["W"] <= 0 or caixa["H"] <= 0:
+            continue
+        chave = (
+            caixa["pagina"],
+            round(caixa["h"], 2),
+            round(caixa["v"], 2),
+            round(caixa["W"], 2),
+            round(caixa["H"], 2),
+        )
+        if chave in vistas:
+            continue
+        vistas.add(chave)
+        validas.append(caixa)
+
+    validas.sort(key=lambda c: (c["pagina"], c["v"], c["h"]))
+    return validas
+
+
+def _analisar_edit(saida: str) -> dict:
+    dados: dict = {}
+    for linha in saida.splitlines():
+        if linha.startswith("Input:"):
+            dados["arquivo"] = linha.split(":", 1)[1].strip()
+        elif linha.startswith("Line:"):
+            try:
+                dados["linha"] = int(linha.split(":", 1)[1].strip())
+            except ValueError:
+                pass
+        elif linha.startswith("Column:"):
+            try:
+                dados["coluna"] = int(linha.split(":", 1)[1].strip())
+            except ValueError:
+                pass
+    return dados
+
+
+def sincronizar_fonte(slug: str, linha: int, coluna: int = 1) -> dict:
+    artigo = caminho_artigo(slug)
+    pdf = caminho_pdf(slug)
+    if not artigo.is_file():
+        return {"ok": False, "mensagem": f"Artigo não encontrado: {slug}"}
+    if not synctex_disponivel():
+        return {
+            "ok": False,
+            "mensagem": "O comando synctex não está disponível nesta máquina.",
+        }
+    if not pdf.is_file() or not _synctex_existe(slug):
+        return {
+            "ok": False,
+            "mensagem": (
+                "Compile o artigo novamente para gerar os dados de sincronização."
+            ),
+        }
+
+    linha = max(1, int(linha))
+    coluna = max(1, int(coluna))
+    entrada = f"{linha}:{coluna}:{artigo.name}"
+    saida_pdf = str(pdf.relative_to(RAIZ))
+    try:
+        codigo, saida = _executar_synctex(
+            ["view", "-i", entrada, "-o", saida_pdf]
+        )
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        return {"ok": False, "mensagem": f"Falha ao consultar o SyncTeX: {exc}"}
+
+    caixas = _analisar_caixas_view(saida)
+    if codigo != 0 or not caixas:
+        return {
+            "ok": False,
+            "mensagem": "O SyncTeX não encontrou correspondência para esta linha.",
+        }
+    return {
+        "ok": True,
+        "pagina": caixas[0]["pagina"],
+        "caixas": caixas,
+    }
+
+
+def sincronizar_pdf(slug: str, pagina: int, x: float, y: float) -> dict:
+    artigo = caminho_artigo(slug)
+    pdf = caminho_pdf(slug)
+    if not artigo.is_file():
+        return {"ok": False, "mensagem": f"Artigo não encontrado: {slug}"}
+    if not synctex_disponivel():
+        return {
+            "ok": False,
+            "mensagem": "O comando synctex não está disponível nesta máquina.",
+        }
+    if not pdf.is_file() or not _synctex_existe(slug):
+        return {
+            "ok": False,
+            "mensagem": (
+                "Compile o artigo novamente para gerar os dados de sincronização."
+            ),
+        }
+
+    pagina = max(1, int(pagina))
+    x = max(0.0, float(x))
+    y = max(0.0, float(y))
+    alvo = f"{pagina}:{x:.2f}:{y:.2f}:{pdf.relative_to(RAIZ)}"
+    try:
+        codigo, saida = _executar_synctex(["edit", "-o", alvo])
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        return {"ok": False, "mensagem": f"Falha ao consultar o SyncTeX: {exc}"}
+
+    dados = _analisar_edit(saida)
+    if codigo != 0 or "linha" not in dados:
+        return {
+            "ok": False,
+            "mensagem": "O SyncTeX não encontrou correspondência para este ponto.",
+        }
+
+    arquivo = dados.get("arquivo")
+    if arquivo:
+        try:
+            if Path(arquivo).resolve() != artigo.resolve():
+                return {
+                    "ok": False,
+                    "mensagem": "A posição do PDF não corresponde a este artigo.",
+                }
+        except OSError:
+            pass
+
+    return {
+        "ok": True,
+        "linha": dados["linha"],
+        "coluna": dados.get("coluna", -1),
+    }

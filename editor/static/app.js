@@ -60,8 +60,7 @@ let timerDestaqueLinha = null;
 let linhaDestaque = null;
 let sincronizando = false;
 
-// --- TAB SYSTEM ---
-let abasAbertas = new Map(); // slug -> {elemento, indice}
+let abasAbertas = new Map(); 
 let indiceTabAtual = -1;
 
 function criarBarraTabas() {
@@ -69,12 +68,10 @@ function criarBarraTabas() {
   if (!barra) {
     barra = document.createElement("div");
     barra.className = "barra-tabas";
-    // Insere após o btnTema na barra superior
     const headerCtrl = document.querySelector(".header-ctrls");
     if (headerCtrl) {
       headerCtrl.insertBefore(barra, btnTema);
     } else {
-      // Fallback: insere após o tema na area principal
       const topo = document.getElementById("topo-sistema");
       if (!topo) {
         const area = document.getElementById("area-principal");
@@ -111,7 +108,6 @@ function criarBotaoTab(titulo, isNovo = false, slug = null, isFocado = false) {
   } else {
     btn.dataset.slug = slug;
     btn.addEventListener("click", () => SelecionarTab(slug));
-    // Botão de fechar na aba
     const fechar = document.createElement("span");
     fechar.className = "fechar-tab";
     fechar.title = "Fechar aba";
@@ -127,9 +123,7 @@ function criarBotaoTab(titulo, isNovo = false, slug = null, isFocado = false) {
 
 function SelecionarTab(slug) {
   if (abasAbertas.has(slug)) {
-    // Atualizar editor e UI
     const info = abasAbertas.get(slug);
-    // Atualizar CodeMirror
     const dados = await api(`/api/artigos/${slug}`);
     editor.setValue(dados.conteudo);
     slugAtual = dados.slug;
@@ -139,7 +133,6 @@ function SelecionarTab(slug) {
     btnCompilar.disabled = false;
     limparPrevia();
     fecharLog();
-    // Marcar como ativa
     abasAbertas.forEach((info, s) => {
       const b = info.elemento;
       b.classList.toggle("ativo", s === slug);
@@ -153,19 +146,15 @@ function fecharTab(slug) {
   const info = abasAbertas.get(slug);
   if (!info) return;
 
-  // Remover da lista de abas
   abasAbertas.delete(slug);
   info.elemento.remove();
 
-  // Se fecharmos a aba atual, selecionar outra
   if (slugAtual === slug) {
-    // Selecionar a próxima aba ou abrir nova
     const slugs = Array.from(abasAbertas.keys());
     if (slugs.length > 0) {
-      const proximo = slugs[0]; // primeiro da lista
+const proximo = slugs[0]; 
       SelecionarTab(proximo);
     } else {
-      // Nenhuma aba aberta - resetar
       slugAtual = null;
       editor.setValue("");
       atualEl.textContent = "";
@@ -184,7 +173,6 @@ function marcarBotoesTabs() {
     b.classList.toggle("ativo", s === slugAtual);
     b.disabled = false;
   });
-  // Novo botão sempre desabilitado quando nenhuma aba aberta ou sempre disponível
   const novoBtn = document.querySelector(".btn-tab.novo-tab");
   if (novoBtn) {
     novoBtn.disabled = slugAtual === null && abasAbertas.size === 0;
@@ -202,21 +190,16 @@ function abrirArtigo(slug) {
       slugAtual = dados.slug;
       sujo = false;
 
-      // Verificar se já está em uma aba
       if (abasAbertas.has(slug)) {
-        // Já está em uma aba - apenas selecioná-la
         SelecionarTab(slug);
       } else {
-        // Criar nova aba
         const info = abasAbertas.get(slug);
         if (!info) {
-          // Criar elemento da aba
           const barra = criarBarraTabas();
           const btn = criarBotaoTab(dados.titulo || dados.slug, false, slug, true);
           barra.appendChild(btn);
           abasAbertas.set(slug, { elemento: btn, indice: abasAbertas.size });
 
-          // Carregar conteúdo no editor
           editor.setValue(dados.conteudo);
           slugAtual = dados.slug;
           sujo = false;
@@ -243,7 +226,6 @@ function abrirArtigoNovo() {
   if (!slug) return;
   slug = slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-");
   if (!slug) return;
-  // Verificar se já existe
   const existe = document.querySelector(`[data-slug="${slug}"]`);
   if (existe) {
     alert("Já existe um artigo com este slug. Selecione-o na lista.");
@@ -277,24 +259,17 @@ function fecharTodosTabs() {
   marcarBotoesTabs();
 }
 
-// Atualizar a função abrirArtigo existente para usar o sistema de tabs
-// (já substituída acima)
 
-// Função para carregar a lista de artigos na barra de abas (quando necessário)
 async function carregarListaParaTabs() {
   const artigos = await api("/api/artigos");
   const slugsExistentes = Array.from(abasAbertas.keys());
-  // Remover abas que não têm mais artigo
   artigos.forEach((a) => {
     if (!abasAbertas.has(a.slug)) {
-      // Adicionar à lista lateral apenas se não estiver em aba
     }
   });
-  // Atualizar botões
   marcarBotoesTabs();
 }
 
-// Substituir a função carregarLista para também atualizar abas
 async function carregarListaAtualizada() {
   const artigos = await api("/api/artigos");
   listaEl.innerHTML = "";
@@ -318,7 +293,6 @@ async function carregarListaAtualizada() {
   marcarBotoesTabs();
 }
 
-// Substituir chamada inicial
 (async function iniciar() {
   aplicarTema(temaAtual());
   aplicarTemaPdf(temaPdfAtual());

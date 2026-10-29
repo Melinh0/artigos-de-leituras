@@ -14,7 +14,7 @@ BUILD_DIR = RAIZ / "build"
 
 ARQUIVO_ARTIGO = "artigo.tex"
 TIMEOUT_SEGUNDOS = 90
-LIMITE_LOG = 12000
+LIMITE_LOG = 50000
 
 
 def _atualizar_path_do_registro() -> None:
@@ -87,7 +87,7 @@ def _extrair_erros(log: str) -> list[str]:
 def _log_resumido(log: str) -> str:
     if len(log) <= LIMITE_LOG:
         return log
-    return "... (início do log omitido)\n" + log[-LIMITE_LOG:]
+    return "... (inicio do log omitido)\n" + log[-LIMITE_LOG:]
 
 
 def _executar_passe(slug: str, artigo: Path, saida: Path) -> tuple[int, str]:
@@ -113,6 +113,26 @@ def _executar_passe(slug: str, artigo: Path, saida: Path) -> tuple[int, str]:
     return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
 
 
+def _executar_bibtex(slug: str, saida: Path) -> tuple[int, str]:
+    pasta_artigo = ARTIGOS_DIR / slug
+    env = os.environ.copy()
+    env["TEXINPUTS"] = f"{pasta_artigo}{os.pathsep}{TEMPLATE_DIR}{os.pathsep}{env.get('TEXINPUTS', '')}"
+    env["BIBINPUTS"] = f"{pasta_artigo}{os.pathsep}{env.get('BIBINPUTS', '')}"
+    env["BSTINPUTS"] = f"{TEMPLATE_DIR}{os.pathsep}{env.get('BSTINPUTS', '')}"
+    cmd = ["bibtex", "-terse", "artigo"]
+    proc = subprocess.run(
+        cmd,
+        cwd=saida,
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=TIMEOUT_SEGUNDOS,
+    )
+    return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
+
+
 def compilar(slug: str) -> ResultadoCompilacao:
     artigo = caminho_artigo(slug)
     if not artigo.is_file():
@@ -121,7 +141,7 @@ def compilar(slug: str) -> ResultadoCompilacao:
             pdf=None,
             log="",
             erros=[],
-            mensagem=f"Artigo não encontrado: {slug}",
+            mensagem=f"Artigo nao encontrado: {slug}",
         )
 
     if not pdflatex_disponivel():
@@ -131,9 +151,9 @@ def compilar(slug: str) -> ResultadoCompilacao:
             log="",
             erros=[],
             mensagem=(
-                "pdflatex não encontrado nesta máquina. "
+                "pdflatex nao encontrado nesta maquina. "
                 "Execute o editor com Docker (docker compose up) "
-                "ou instale uma distribuição LaTeX (ex.: MiKTeX/TeX Live)."
+                "ou instale uma distribuicao LaTeX (ex.: MiKTeX/TeX Live)."
             ),
         )
 
@@ -141,19 +161,39 @@ def compilar(slug: str) -> ResultadoCompilacao:
     saida.mkdir(parents=True, exist_ok=True)
 
     logs: list[str] = []
+    usar_bibtex = any((ARTIGOS_DIR / slug).glob("*.bib"))
     try:
+        codigo, texto = _executar_passe(slug, artigo, saida)
+        logs.append(texto)
+        if codigo != 0:
+            raise RuntimeError("pdflatex falhou na primeira passagem")
+
+        if usar_bibtex:
+            codigo_bib, texto_bib = _executar_bibtex(slug, saida)
+            logs.append(f"--- bibtex ---\n{texto_bib}")
+            if codigo_bib != 0:
+                logs.append("--- aviso: bibtex falhou, prosseguindo sem referencias ---")
+
         for _ in range(2):
             codigo, texto = _executar_passe(slug, artigo, saida)
             logs.append(texto)
             if codigo != 0:
-                break
-    except subprocess.TimeoutExpired:
+                raise RuntimeError("pdflatex falhou nas passagens finais")
+    except (subprocess.TimeoutExpired, RuntimeError) as exc:
+        if isinstance(exc, subprocess.TimeoutExpired):
+            return ResultadoCompilacao(
+                ok=False,
+                pdf=None,
+                log="\n".join(logs) + "\n\nTempo limite de compilacao excedido.",
+                erros=["Tempo limite excedido."],
+                mensagem="A compilacao excedeu o tempo limite.",
+            )
         return ResultadoCompilacao(
             ok=False,
             pdf=None,
-            log="\n".join(logs) + "\n\nTempo limite de compilação excedido.",
-            erros=["Tempo limite excedido."],
-            mensagem="A compilação excedeu o tempo limite.",
+            log="\n".join(logs),
+            erros=[str(exc)],
+            mensagem="A compilacao falhou. Veja o log abaixo.",
         )
 
     log_completo = "\n".join(logs)
@@ -169,8 +209,8 @@ def compilar(slug: str) -> ResultadoCompilacao:
         ok=False,
         pdf=None,
         log=_log_resumido(log_completo),
-        erros=erros or ["Falha na compilação (sem erro explícito no log)."],
-        mensagem="A compilação falhou. Veja o log abaixo.",
+        erros=erros or ["Falha na compilacao (sem erro explicito no log)."],
+        mensagem="A compilacao falhou. Veja o log abaixo.",
     )
 
 
@@ -295,17 +335,17 @@ def sincronizar_fonte(slug: str, linha: int, coluna: int = 1) -> dict:
     artigo = caminho_artigo(slug)
     pdf = caminho_pdf(slug)
     if not artigo.is_file():
-        return {"ok": False, "mensagem": f"Artigo não encontrado: {slug}"}
+        return {"ok": False, "mensagem": f"Artigo nao encontrado: {slug}"}
     if not synctex_disponivel():
         return {
             "ok": False,
-            "mensagem": "O comando synctex não está disponível nesta máquina.",
+            "mensagem": "O comando synctex nao esta disponivel nesta maquina.",
         }
     if not pdf.is_file() or not _synctex_existe(slug):
         return {
             "ok": False,
             "mensagem": (
-                "Compile o artigo novamente para gerar os dados de sincronização."
+                "Compile o artigo novamente para gerar os dados de sincronizacao."
             ),
         }
 
@@ -324,7 +364,7 @@ def sincronizar_fonte(slug: str, linha: int, coluna: int = 1) -> dict:
     if codigo != 0 or not caixas:
         return {
             "ok": False,
-            "mensagem": "O SyncTeX não encontrou correspondência para esta linha.",
+            "mensagem": "O SyncTeX nao encontrou correspondencia para esta linha.",
         }
     return {
         "ok": True,
@@ -337,17 +377,17 @@ def sincronizar_pdf(slug: str, pagina: int, x: float, y: float) -> dict:
     artigo = caminho_artigo(slug)
     pdf = caminho_pdf(slug)
     if not artigo.is_file():
-        return {"ok": False, "mensagem": f"Artigo não encontrado: {slug}"}
+        return {"ok": False, "mensagem": f"Artigo nao encontrado: {slug}"}
     if not synctex_disponivel():
         return {
             "ok": False,
-            "mensagem": "O comando synctex não está disponível nesta máquina.",
+            "mensagem": "O comando synctex nao esta disponivel nesta maquina.",
         }
     if not pdf.is_file() or not _synctex_existe(slug):
         return {
             "ok": False,
             "mensagem": (
-                "Compile o artigo novamente para gerar os dados de sincronização."
+                "Compile o artigo novamente para gerar os dados de sincronizacao."
             ),
         }
 
@@ -364,7 +404,7 @@ def sincronizar_pdf(slug: str, pagina: int, x: float, y: float) -> dict:
     if codigo != 0 or "linha" not in dados:
         return {
             "ok": False,
-            "mensagem": "O SyncTeX não encontrou correspondência para este ponto.",
+            "mensagem": "O SyncTeX nao encontrou correspondencia para este ponto.",
         }
 
     arquivo = dados.get("arquivo")
@@ -373,7 +413,7 @@ def sincronizar_pdf(slug: str, pagina: int, x: float, y: float) -> dict:
             if Path(arquivo).resolve() != artigo.resolve():
                 return {
                     "ok": False,
-                    "mensagem": "A posição do PDF não corresponde a este artigo.",
+                    "mensagem": "A posicao do PDF nao corresponde a este artigo.",
                 }
         except OSError:
             pass
